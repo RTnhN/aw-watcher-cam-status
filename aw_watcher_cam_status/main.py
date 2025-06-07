@@ -9,8 +9,10 @@ from aw_core import dirs
 from aw_core.models import Event
 from aw_client.client import ActivityWatchClient
 
+from .helper.cam_checker import is_cam_active
 
-watcher_name = "aw-watcher-template"
+
+watcher_name = "aw-watcher-cam-status"
 
 logger = logging.getLogger(watcher_name)
 DEFAULT_CONFIG = f"""
@@ -42,22 +44,21 @@ def main():
     aw = ActivityWatchClient(watcher_name, testing=False)
     bucketname = "{}_{}".format(aw.client_name, aw.client_hostname)
     if aw.get_buckets().get(bucketname) == None:
-        aw.create_bucket(bucketname, event_type="aw-watcher-template_data", queued=True)
+        aw.create_bucket(bucketname, event_type="cam_status_data", queued=True)
     aw.connect()
 
     # This is the maximum time that the action will take. 
     # If the action takes longer than this, the event will be split into multiple events.
     # Make sure to make this number as big as needed to make sure that the event is not split.
-    max_action_time = 1
+    max_action_time = .5
 
     while True:
 
         try:
-            # You can put whatever you want to track here and make it fill out the data dictionary. 
-            title =  f"This will be the title of the event that shows in the Timeline"
-            data = {"title": title,
-                    "param1": "something", 
-                    "param2":"something else"}
+            title =  f"Cam off"
+            if is_cam_active():
+                title =  f"Cam on"
+            data = {"title": title}
             print_statusline(title)
             event = Event(timestamp=datetime.now(timezone.utc), data=data)
             aw.heartbeat(bucketname, event, pulsetime=poll_time + max_action_time, queued=True)
