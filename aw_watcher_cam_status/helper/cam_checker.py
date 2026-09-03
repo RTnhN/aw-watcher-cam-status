@@ -4,39 +4,33 @@ import glob
 import platform
 import subprocess
 import sys
-from typing import Callable
 
 # ----------------------------  public facade  ---------------------------- #
 
 
 def is_cam_active() -> tuple[bool, str]:
     """Return webcam activity status for the current OS."""
-    return _dispatch(
-        windows=_win_cam_active,
-        darwin=_mac_cam_active,
-        linux=_nix_cam_active,
-    )
-
-
-def _dispatch(**impl: Callable[[], tuple[bool, str]]) -> tuple[bool, str]:
     osname = platform.system().lower()
     if osname.startswith("win"):
-        return impl["windows"]()
+        return _win_cam_active()
     if osname == "darwin":
-        return impl["darwin"]()
+        return _mac_cam_active()
     if osname == "linux":
-        return impl["linux"]()
+        return _nix_cam_active()
     return (False, "Not supported")
 
 
 def _safe_run(cmd: list[str]) -> subprocess.CompletedProcess:
     """Run *cmd*; never raise use returncode & output instead."""
-    return subprocess.run(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        text=True,
-    )
+    try:
+        return subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+    except FileNotFoundError:
+        return subprocess.CompletedProcess(cmd, returncode=1)
 
 
 if sys.platform.startswith("win"):
@@ -107,11 +101,40 @@ def _mac_cam_active() -> tuple[bool, str]:
 def _nix_cam_active() -> tuple[bool, str]:
     """
     Mark camera active if *any* /dev/video* node has an
-    open file handle (requires `fuser` from procps-ng).
+    open file handle and report the processes using it (requires `fuser`
+    from procps-ng).
     """
+    try:
+        import psutil
+    except ModuleNotFoundError:
+        psutil = None
+
+    active = False
+    users = []
     for node in glob.glob("/dev/video*"):
-        if _safe_run(["fuser", "-s", node]).returncode == 0:
+        result = _safe_run(["fuser", node])
+        if result.returncode != 0:
+            continue
+        active = True
+
+        if psutil is None:
             return (True, "active")
+
+        for pid in result.stdout.split():
+            try:
+                process = psutil.Process(int(pid))
+                name = process.name()
+            except (psutil.Error, ValueError):
+                continue
+
+            user = f"{name} (pid {pid})" if name else f"pid {pid}"
+            if user not in users:
+                users.append(user)
+
+    if users:
+        return (True, ", ".join(users))
+    if active:
+        return (True, "active")
     return (False, "off")
 
 
