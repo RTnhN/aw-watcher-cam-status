@@ -1,19 +1,26 @@
-[tool.poetry]
+[project]
 name = "aw-watcher-cam-status"
 version = "0.0.1"
 description = "Webcam Status Watcher for ActivityWatch"
-authors = ["Zach Strout <zachstrout@gmail.com>"]
+readme = "README.md"
+requires-python = ">=3.7,<4.0"
+authors = [{ name = "Zach Strout", email = "zachstrout@gmail.com" }]
 license = "MPL-2.0"
-repository = "https://github.com/RTnhN/aw-watcher-cam-status"
+license-files = ["LICENSE.txt"]
+dependencies = [
+    "aw-client>=0.5.7,<0.6.0",
+    "psutil>=7.0.0,<8.0.0",
+]
 
-[tool.poetry.scripts]
+[project.urls]
+Repository = "https://github.com/RTnhN/aw-watcher-cam-status"
+
+[project.scripts]
 aw-watcher-cam-status = "aw_watcher_cam_status:main"
 
-[tool.poetry.dependencies]
-python = "^3.7"
-aw-client = "^0.5.7"
-psutil = "^7.0.0"
-
 [build-system]
-requires = ["poetry>=0.12"]
-build-backend = "poetry.masonry.api"
+requires = ["uv_build>=0.12.9,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
