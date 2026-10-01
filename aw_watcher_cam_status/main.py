@@ -59,10 +59,11 @@ def main() -> None:
         aw.create_bucket(bucketname, event_type="cam_status_data", queued=True)
     aw.connect()
 
-    # This is the maximum time that the action will take.
-    # If the action takes longer than this, the event will be split into multiple events.
-    # Make sure to make this number as big as needed to make sure that the event is not split.
-    max_action_time = 0.5
+    # The detector can take longer than the configured poll interval while it
+    # queries every video device. Keep matching heartbeats together as a
+    # visible interval; a state change still creates a new event because its
+    # data differs.
+    pulse_time = max(5.0, poll_time + 5.0)
 
     while True:
 
@@ -75,7 +76,7 @@ def main() -> None:
             printer.print(name)
             event = Event(timestamp=datetime.now(timezone.utc), data=data)
             aw.heartbeat(
-                bucketname, event, pulsetime=poll_time + max_action_time, queued=True
+                bucketname, event, pulsetime=pulse_time, queued=True
             )
         except Exception as e:
             print("An exception occurred: {}".format(e))
